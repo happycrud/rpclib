@@ -22,8 +22,8 @@ var (
 
 func main() {
 	flag.Parse()
-	discovery.InitEtcdClient("http://localhost:2379")
-	conn, _ := discovery.NewConn("helloworld", discovery.GetEtcdClient())
+
+	conn, _ := discovery.NewConn("helloworld")
 	// Set up a connection to the server.
 	// conn, err := grpc.Dial("etcd:///"+"helloworld", grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithDefaultCallOptions(grpc.CallContentSubtype(protojson.JSON{}.Name())))
 	// if err != nil {

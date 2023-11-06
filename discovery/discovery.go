@@ -3,6 +3,7 @@ package discovery
 import (
 	"context"
 	"fmt"
+	"os"
 	"sync"
 
 	"github.com/happycurd/rpclib/protojson"
@@ -18,19 +19,21 @@ import (
 var oncelock sync.Once
 var etcdClient *clientv3.Client
 
-func InitEtcdClient(etcdAddress string) {
-	var err error
+func GetEtcdClient() *clientv3.Client {
 	if etcdClient != nil {
-		return
+		return etcdClient
 	}
+	etcdAddr := os.Getenv("ETCD_ADDRESS")
+	if etcdAddr == "" {
+		etcdAddr = "http://localhost:2379"
+	}
+	var err error
 	oncelock.Do(func() {
-		etcdClient, err = clientv3.NewFromURL(etcdAddress)
+		etcdClient, err = clientv3.NewFromURL(etcdAddr)
 		if err != nil {
 			panic(err)
 		}
 	})
-}
-func GetEtcdClient() *clientv3.Client {
 	return etcdClient
 }
 
@@ -42,15 +45,15 @@ type ServiceInstance struct {
 	Etcd            *clientv3.Client
 }
 
-func NewServiceInstance(serviceID string, myaddr string, etcd *clientv3.Client) *ServiceInstance {
+func NewServiceInstance(serviceID string, myaddr string) *ServiceInstance {
 	i := &ServiceInstance{
 		ServiceID:       serviceID,
 		InstanceID:      xid.New().String(),
 		Endpoint:        myaddr,
 		EndpointManager: nil,
-		Etcd:            etcd,
+		Etcd:            GetEtcdClient(),
 	}
-	i.EndpointManager, _ = endpoints.NewManager(etcd, i.ServiceID)
+	i.EndpointManager, _ = endpoints.NewManager(i.Etcd, i.ServiceID)
 	return i
 }
 func (i *ServiceInstance) DiscoveryID() string {
@@ -80,8 +83,8 @@ func (i *ServiceInstance) Deregister() error {
 	return i.EndpointManager.DeleteEndpoint(context.Background(), i.DiscoveryID())
 }
 
-func NewConn(serviceID string, client *clientv3.Client) (*grpc.ClientConn, error) {
-	resolver, err := resolver.NewBuilder(client)
+func NewConn(serviceID string) (*grpc.ClientConn, error) {
+	resolver, err := resolver.NewBuilder(GetEtcdClient())
 	if err != nil {
 		return nil, err
 	}

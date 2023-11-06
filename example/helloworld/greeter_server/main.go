@@ -31,8 +31,7 @@ func (s *server) SayHello(ctx context.Context, in *pb.HelloRequest) (*pb.HelloRe
 
 func main() {
 	flag.Parse()
-	discovery.InitEtcdClient("http://127.0.0.1:2379")
-	si := discovery.NewServiceInstance("helloworld", "172.16.109.105:"+fmt.Sprintf("%d", *port), discovery.GetEtcdClient())
+	si := discovery.NewServiceInstance("helloworld", "172.16.109.105:"+fmt.Sprintf("%d", *port))
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", *port))
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
