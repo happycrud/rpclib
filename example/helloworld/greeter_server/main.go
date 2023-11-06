@@ -1,22 +1,3 @@
-/*
- *
- * Copyright 2015 gRPC authors.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- */
-
-// Package main implements a server for Greeter service.
 package main
 
 import (
@@ -26,8 +7,9 @@ import (
 	"log"
 	"net"
 
-	pb "grpcli/example/helloworld/helloworld"
-	_ "grpcli/protojsonserver"
+	"github.com/happycurd/rpclib/discovery"
+	pb "github.com/happycurd/rpclib/example/helloworld/helloworld"
+	_ "github.com/happycurd/rpclib/protojsonserver"
 
 	"google.golang.org/grpc"
 )
@@ -49,6 +31,8 @@ func (s *server) SayHello(ctx context.Context, in *pb.HelloRequest) (*pb.HelloRe
 
 func main() {
 	flag.Parse()
+	discovery.InitEtcdClient("http://127.0.0.1:2379")
+	si := discovery.NewServiceInstance("helloworld", "172.16.109.105:"+fmt.Sprintf("%d", *port), discovery.GetEtcdClient())
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", *port))
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
@@ -56,6 +40,10 @@ func main() {
 	s := grpc.NewServer()
 	pb.RegisterGreeterServer(s, &server{})
 	log.Printf("server listening at %v", lis.Addr())
+	err = si.Register()
+	if err != nil {
+		panic(err)
+	}
 	if err := s.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)
 	}
