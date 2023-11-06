@@ -1,22 +1,3 @@
-/*
- *
- * Copyright 2015 gRPC authors.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- */
-
-// Package main implements a client for Greeter service.
 package main
 
 import (
@@ -25,11 +6,9 @@ import (
 	"log"
 	"time"
 
-	pb "grpcli/example/helloworld/helloworld"
-	"grpcli/protojson"
-
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
+	"github.com/happycurd/rpclib/discovery"
+	pb "github.com/happycurd/rpclib/example/helloworld/helloworld"
+	"github.com/happycurd/rpclib/protojson"
 )
 
 const (
@@ -43,25 +22,29 @@ var (
 
 func main() {
 	flag.Parse()
+	discovery.InitEtcdClient("http://localhost:2379")
+	conn, _ := discovery.NewConn("helloworld", discovery.GetEtcdClient())
 	// Set up a connection to the server.
-	conn, err := grpc.Dial(*addr, grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithDefaultCallOptions(grpc.CallContentSubtype(protojson.JSON{}.Name())))
-	if err != nil {
-		log.Fatalf("did not connect: %v", err)
-	}
+	// conn, err := grpc.Dial("etcd:///"+"helloworld", grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithDefaultCallOptions(grpc.CallContentSubtype(protojson.JSON{}.Name())))
+	// if err != nil {
+	// 	log.Fatalf("did not connect: %v", err)
+	// }
 	defer conn.Close()
 	c := pb.NewGreeterClient(conn)
 
 	// Contact the server and print out its response.
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
-	r, err := c.SayHello(ctx, &pb.HelloRequest{Name: "xx"})
-	if err != nil {
-		log.Fatalf("could not greet: %v", err)
+	for i := 0; i < 10; i++ {
+		r, err := c.SayHello(ctx, &pb.HelloRequest{Name: "xx"})
+		if err != nil {
+			log.Fatalf("could not greet: %v", err)
+		}
+		log.Printf("Greeting: %s", r.GetMessage())
 	}
-	log.Printf("Greeting: %s", r.GetMessage())
 
 	req := `{"name":"world"}`
 	resp := &protojson.Response{}
-	conn.Invoke(ctx, "/helloworld.Greeter/SayHello", req, resp)
-	log.Printf("Greeting: %+v", resp)
+	err := conn.Invoke(ctx, "/helloworld.Greeter/SayHello", req, resp)
+	log.Printf("Greeting: %+v err:%v", resp, err)
 }
